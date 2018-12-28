@@ -1,11 +1,12 @@
 from sudoku import *
+from infer import infer
 
 DEBUG = False
 global_count = 0
 
+global backtracks
+backtracks = 0
 
-def infer(sudoku):
-    pass
 
 def next_empty(sudoku):
     for row in sudoku.rows:
@@ -15,12 +16,19 @@ def next_empty(sudoku):
 
 def solve(sudoku, prefix = ""):
     global global_count
+    global backtracks
     global_count += 1
 
     if not sudoku.is_valid():
         return False
 
     changes = infer(sudoku)
+
+    if not sudoku.is_valid():
+        for pos, _ in changes:
+            sudoku[pos] = 0
+        backtracks += 1
+        return False
 
     if sudoku.is_full():
         return True
@@ -29,8 +37,12 @@ def solve(sudoku, prefix = ""):
     cell_pos = next_empty(sudoku)
     assert cell_pos is not None
 
-    # Attempt each of 1-9 in that cell
-    for cell_guess in range(1, 10):
+    # Attempt each immediately valid option
+    possible_guesses = sudoku.possibles[cell_pos]
+    for cell_guess in possible_guesses:
+        sudoku[cell_pos] = cell_guess
+
+        global DEBUG
         if DEBUG:
             print(prefix + "Guessing " + str(cell_guess) + " at " + str(cell_pos))
             print(sudoku)
@@ -38,21 +50,20 @@ def solve(sudoku, prefix = ""):
 
             user = input("Step? ")
             if user == "quit": return True # hack to exit cleanly
+            if user == "continue": DEBUG=False # hack to exit cleanly
 
 
-        sudoku[cell_pos] = cell_guess
-
-        # Try next if not valid
-        if not sudoku.is_valid():
-
-
-        # The guess is valid for now, recurse
-
+        # recurse
+        if solve(sudoku):
             # We did it!
             return True
 
     # We only get here if we've gone through every option and failed
+    backtracks += 1
     sudoku[cell_pos] = 0
+    for pos, _ in changes:
+        sudoku[pos] = 0
+    return False
 
 import sys
 
@@ -65,12 +76,14 @@ def get_filename():
 def main():
     filename = get_filename()
     sudoku = sudoku_from_file(filename)
-    print(sudoku)
+    print("Solving:\n%s" % sudoku)
 
     solved = solve(sudoku)
-    print(solved)
-    print(sudoku)
-    print(global_count)
+    print("\nSolved? %s" % solved)
+    print("%s" % sudoku)
+
+    print("\nCount: %s" % global_count)
+    print("Backtracks: %s" % backtracks)
 
 
 if __name__ == "__main__":

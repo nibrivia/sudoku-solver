@@ -1,3 +1,5 @@
+from infer import group_to_set, group_empty_cells
+from infer import OPTIONS
 
 def sudoku_from_file(filename):
     with open(filename) as f:
@@ -20,6 +22,7 @@ def has_duplicates(group):
 class Sudoku:
     def __init__(self, sudoku):
         self.sudoku = sudoku
+        self.stale_possibles = True
 
     def is_full(self):
         for row in self.sudoku:
@@ -27,6 +30,21 @@ class Sudoku:
                 if cell == 0:
                     return False
         return True
+
+    @property
+    def possibles(self):
+        if self.stale_possibles:
+            self.possibles_dict = dict()
+
+            for group in self.groups:
+                value_set = group_to_set(group)
+                for pos in group_empty_cells(group):
+                    current_possibles = self.possibles_dict.get(pos, OPTIONS)
+                    self.possibles_dict[pos] = current_possibles.difference(value_set)
+
+        self.stale_possibles = False
+        return self.possibles_dict
+
 
     @property
     def groups(self):
@@ -63,8 +81,13 @@ class Sudoku:
     def is_valid(self):
         for group in self.groups:
             indices, values = zip(*group)
+            # No valid option
+            for pos in indices:
+                if self[pos] == 0 and len(self.possibles[pos]) == 0:
+                    return False
             if has_duplicates(values):
                 return False
+
 
         return True
 
@@ -74,6 +97,7 @@ class Sudoku:
 
     def __setitem__(self, position, value):
         r, c = position
+        self.stale_possibles = True
         self.sudoku[r][c] = value
 
     def __str__(self):
